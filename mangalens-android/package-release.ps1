@@ -27,4 +27,3 @@ $info=[ordered]@{versionName=$version;versionCode=$code;sha256=$hash;apkUrl='htt
 Compress-Archive -Path (Join-Path $stage '*') -DestinationPath (Join-Path $PSScriptRoot ('dist\MangaLens-Android-'+$version+'.zip')) -Force
 Write-Output ('Release files: '+(Get-ChildItem -LiteralPath $stage -Recurse -File -Force).Count)
 Write-Output ('Version: '+$version+' / '+$code)
-

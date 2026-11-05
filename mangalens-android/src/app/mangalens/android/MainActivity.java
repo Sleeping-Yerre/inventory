@@ -43,6 +43,9 @@ public final class MainActivity extends Activity {
         efforts.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){public void onNothingSelected(android.widget.AdapterView<?> p){}public void onItemSelected(android.widget.AdapterView<?> p,View v,int position,long id){if(!loading&&position<effortValues.size())Core.prefs(MainActivity.this).edit().putString("effort",effortValues.get(position)).apply();}});
         button("로그아웃",this::signOut);
         section("번역 표시와 참고사항");label("글자 크기",14,true);font=new Spinner(this);font.setAdapter(adapter(Arrays.asList("80%","100%","120%","140%")));font.setSelection(Math.max(0,Arrays.asList(80,100,120,140).indexOf(Core.prefs(this).getInt("font",100))));content.addView(font,fill());
+        CheckBox effects=new CheckBox(this);effects.setText("효과음 표시");effects.setTextSize(14);effects.setChecked(Core.prefs(this).getBoolean("show_effects",true));content.addView(effects,fill());
+        label("판독이 불확실한 영역은 원문 그대로 둡니다. 효과음 표시를 끄면 확실하게 읽힌 효과음도 숨깁니다.",12,false);
+        effects.setOnCheckedChangeListener((button,checked)->{Core.prefs(this).edit().putBoolean("show_effects",checked).apply();if(OverlayService.instance!=null)OverlayService.instance.refreshDisplay();Core.status(checked?"확실히 읽힌 효과음을 표시합니다.":"효과음 표시를 껐습니다.");});
         glossary=edit("이름·호칭·말투 참고사항 (선택)",Core.prefs(this).getString("glossary",""));glossary.setSingleLine(false);glossary.setMinLines(2);glossary.setMaxLines(5);
         button("번역 설정 저장",()->{Core.prefs(this).edit().putString("glossary",glossary.getText().toString()).putInt("font",new int[]{80,100,120,140}[font.getSelectedItemPosition()]).apply();Core.status("설정을 저장했습니다. 다음 번역부터 적용됩니다.");});
         button("새 작품 · 이전 맥락 초기화",()->{if(OverlayService.instance!=null)OverlayService.instance.resetContext();Core.status("이전 페이지의 번역 맥락을 초기화했습니다.");});

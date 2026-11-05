@@ -23,6 +23,8 @@ public final class OverlayService extends Service {
     private Button translate,toggle;
     private WindowManager.LayoutParams barParams;
     private TranslationView overlay;
+    private TranslationClient.Page lastPage;
+    private int lastWidth,lastHeight;
     private MediaProjection projection;
     private VirtualDisplay display;
     private ImageReader reader;
@@ -87,8 +89,7 @@ public final class OverlayService extends Service {
                     TranslationClient.Page page=client.translate(this,screenshot);
                     Core.UI.post(()->{
                         if(ending||current!=operation)return;
-                        Core.transcript="사용 모델: "+page.model+" / 추론: "+page.effort+"\n"+(page.reused?"동일 화면 결과 재사용 · 추가 요청 없음":String.format(java.util.Locale.KOREAN,"전체 처리 %.1f초",page.seconds))+"\n화면: "+screenshot.getWidth()+" × "+screenshot.getHeight()+"\n\n"+page.report;
-                        show(page,screenshot.getWidth(),screenshot.getHeight());finish(page.blocks.isEmpty()?"표시할 번역이 없습니다. 앱의 ‘처리 결과’를 확인해 주세요.":page.blocks.size()+"개 영역 번역 완료");
+                        int shown=show(page,screenshot.getWidth(),screenshot.getHeight());finish(shown==0?"표시할 번역이 없습니다. 앱의 ‘처리 결과’를 확인해 주세요.":shown+"개 영역 번역 완료");
                     });
                 }catch(Exception ex){Core.UI.post(()->{if(!ending&&current==operation){Core.transcript="번역 실패\n"+Core.message(ex);finish(Core.message(ex));}});}
                 finally{Core.UI.post(screenshot::recycle);}
@@ -96,15 +97,26 @@ public final class OverlayService extends Service {
         }catch(Exception ex){Core.UI.post(()->{if(!ending&&current==operation)finish(Core.message(ex));});}
     }
     private void finish(String text){busy=false;if(bar!=null){bar.setVisibility(View.VISIBLE);translate.setText("번역");}Core.status(text);Toast.makeText(this,text,Toast.LENGTH_LONG).show();}
-    private void show(TranslationClient.Page page,int w,int h){
-        clear();if(page.blocks.isEmpty())return;overlay=new TranslationView(this,page,w,h);
+    private int show(TranslationClient.Page original,int w,int h){
+        removeOverlay();lastPage=original;lastWidth=w;lastHeight=h;
+        TranslationClient.Page page=DisplayPolicy.visible(original,Core.prefs(this).getBoolean("show_effects",true));
+        Core.transcript="사용 모델: "+page.model+" / 추론: "+page.effort+"\n"+(page.reused?"동일 화면 결과 재사용 · 추가 요청 없음":String.format(java.util.Locale.KOREAN,"전체 처리 %.1f초",page.seconds))+"\n화면: "+w+" × "+h+"\n\n"+page.report;
+        if(page.blocks.isEmpty())return 0;overlay=new TranslationView(this,page,w,h);
         WindowManager.LayoutParams params=new WindowManager.LayoutParams(WindowManager.LayoutParams.MATCH_PARENT,WindowManager.LayoutParams.MATCH_PARENT,WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE|WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE|WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN|WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,PixelFormat.TRANSLUCENT);
         params.gravity=Gravity.TOP|Gravity.LEFT;
         // Android permits touches through an untrusted overlay only below its obscuring-opacity limit.
         params.alpha=.79f;if(Build.VERSION.SDK_INT>=28)params.layoutInDisplayCutoutMode=WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
         windows.addView(overlay,params);if(bar!=null){windows.removeView(bar);windows.addView(bar,barParams);}toggle.setText("숨김");
+        return page.blocks.size();
     }
-    private void clear(){if(overlay!=null){windows.removeView(overlay);overlay=null;}if(toggle!=null)toggle.setText("숨김");}
+    private void removeOverlay(){if(overlay!=null){windows.removeView(overlay);overlay=null;}if(toggle!=null)toggle.setText("숨김");}
+    private void clear(){removeOverlay();lastPage=null;}
+    void refreshDisplay(){
+        if(lastPage==null||ending)return;
+        boolean hidden=overlay!=null&&overlay.getVisibility()!=View.VISIBLE;
+        show(lastPage,lastWidth,lastHeight);
+        if(hidden&&overlay!=null){overlay.setVisibility(View.GONE);toggle.setText("표시");}
+    }
     void resetContext(){client.reset();clear();}
     private void resize(int w,int h){
         if(ending||display==null||(width==w&&height==h))return;operation++;client.cancel();if(task!=null)task.cancel(true);busy=false;clear();width=w;height=h;

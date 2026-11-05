@@ -113,7 +113,7 @@ final class TranslationClient {
             else if(block.translation.length()<=3000){block.bounds=union;page.blocks.add(block);}else{rejected++;details.append("표시 제외: 번역문 길이 초과\n");}
             details.append('\n');
         }
-        page.report="일본어 검출: "+raw.optString("japanese_detection","unknown")+" / 모델 보고: "+raw.optInt("detected_japanese_regions")+"개\n받은 영역: "+received+" / 표시: "+page.blocks.size()+" / 제외: "+rejected+"\n"+raw.optString("detection_note")+"\n\n"+details;
+        page.report="일본어 검출: "+raw.optString("japanese_detection","unknown")+" / 모델 보고: "+raw.optInt("detected_japanese_regions")+"개\n받은 영역: "+received+" / 위치 유효: "+page.blocks.size()+" / 기타 제외: "+rejected+"\n"+raw.optString("detection_note")+"\n\n"+details;
         return page;
     }
     private static boolean japanese(String source){for(int i=0;i<source.length();){int c=source.codePointAt(i);if((c>=0x3040&&c<=0x30ff)||(c>=0x31f0&&c<=0x31ff)||(c>=0xff66&&c<=0xff9f)||(c>=0x3400&&c<=0x9fff)||(c>=0x20000&&c<=0x323af))return true;i+=Character.charCount(c);}return false;}

@@ -42,6 +42,7 @@ public final class SelfTestRunner extends Instrumentation {
         check(missing.blocks.isEmpty()&&missing.report.contains("위치 오류")&&missing.report.contains("잠깐만."),"invalid coordinates retain readable translation for review");
         JSONObject foreign=new JSONObject(payload);foreign.getJSONArray("blocks").getJSONObject(0).put("source_language","other");
         check(TranslationClient.parse(response(foreign.toString()),1000,500).blocks.isEmpty(),"non-Japanese model result excluded");
+        displayChecks(c);
         TranslationClient stream=new TranslationClient();
         String terminal=event(new JSONObject().put("type","response.completed").put("response",new JSONObject().put("status","completed").put("output",new JSONArray())));
         String item=event(new JSONObject().put("type","response.output_item.done").put("item",message(payload)));
@@ -88,12 +89,33 @@ public final class SelfTestRunner extends Instrumentation {
             android.view.View root=activity.getWindow().getDecorView();String labels=labels(root);
             check(labels.contains("Continue with ChatGPT")&&labels.contains("추론 수준")&&labels.contains("작은 번역바 시작")&&labels.contains("업데이트 확인"),"Android 17 main screen starts with login, overlay, reasoning and update controls");
             check(root.getWidth()>0&&root.getHeight()>0,"main window receives a usable measured size");
+            android.widget.CheckBox effects=findEffects(root);
+            check(effects!=null&&effects.isChecked(),"effects display remains enabled by default");
+            effects.setChecked(false);check(!Core.prefs(c).getBoolean("show_effects",true),"effects display checkbox immediately saves the local display preference");effects.setChecked(true);
             Bitmap preview=Bitmap.createBitmap(root.getWidth(),root.getHeight(),Bitmap.Config.ARGB_8888);root.draw(new Canvas(preview));
             try(FileOutputStream out=new FileOutputStream(new File(c.getExternalFilesDir(null),"qa-main.png"))){preview.compress(Bitmap.CompressFormat.PNG,100,out);}catch(Exception ex){throw new RuntimeException(ex);}finally{preview.recycle();}
             activity.finish();
         });
     }
     private ByteArrayInputStream bytes(String text){return new ByteArrayInputStream(text.getBytes(StandardCharsets.UTF_8));}
+    private void displayChecks(android.content.Context c)throws Exception{
+        TranslationClient.Page raw=new TranslationClient.Page();raw.report="원문과 번역을 보관한 원래 보고서";
+        TranslationClient.Block dialogue=block("待って","기다려","dialogue",false),effect=block("ドキッ","두근","effect",false),flagged=block("ゴ…","소리","effect",true),marked=block("[판독 불확실]","[판정 불확실]","dialogue",false);
+        raw.blocks.addAll(Arrays.asList(dialogue,effect,flagged,marked));
+        check(DisplayPolicy.uncertain(flagged),"uncertainty flag suppresses even a nonempty translated effect");
+        boolean variants=true;for(String marker:Arrays.asList("[판독 불확실]","[판정 불확실]","［ 판독 불확실 ］")){TranslationClient.Block b=block("ゴ",marker,"effect",false);variants&=DisplayPolicy.uncertain(b);}
+        check(variants,"both reported uncertainty markers are hidden even when model flag is missing");
+        TranslationClient.Page shown=DisplayPolicy.visible(raw,true);check(shown.blocks.equals(Arrays.asList(dialogue,effect)),"reliable dialogue and effects remain visible while uncertain groups are removed");
+        TranslationClient.Page noEffects=DisplayPolicy.visible(raw,false);check(noEffects.blocks.equals(Arrays.asList(dialogue)),"effects toggle removes effects while retaining reliable dialogue");
+        check(raw.blocks.size()==4&&DisplayPolicy.visible(raw,true).blocks.size()==2,"display changes preserve cached results for local restoration without retranslation");
+        check(shown.report.contains("판독 불확실 숨김: 2개")&&shown.report.contains("[판정 불확실]")&&noEffects.report.contains("효과음 숨김: 1개"),"hidden source, translation and reason stay available in processing details");
+        TranslationClient.Page unreadable=new TranslationClient.Page();unreadable.blocks.add(flagged);TranslationClient.Page empty=DisplayPolicy.visible(unreadable,true);
+        Bitmap bitmap=Bitmap.createBitmap(1000,500,Bitmap.Config.ARGB_8888);TranslationView view=new TranslationView(c,empty,1000,500);view.layout(0,0,1000,500);view.draw(new Canvas(bitmap));
+        check(empty.blocks.isEmpty()&&Color.alpha(bitmap.getPixel(120,80))==0,"uncertain-only result draws neither Korean placeholder nor white text mask");bitmap.recycle();
+        Core.prefs(c).edit().remove("show_effects").commit();
+    }
+    private TranslationClient.Block block(String source,String translation,String kind,boolean uncertain){TranslationClient.Block b=new TranslationClient.Block();b.source=source;b.translation=translation;b.note="";b.kind=kind;b.uncertain=uncertain;b.bounds=new RectF(100,50,220,120);b.lines.add(new RectF(b.bounds));return b;}
+    private android.widget.CheckBox findEffects(android.view.View root){if(root instanceof android.widget.CheckBox&&((android.widget.CheckBox)root).getText().toString().equals("효과음 표시"))return (android.widget.CheckBox)root;if(root instanceof android.view.ViewGroup){android.view.ViewGroup group=(android.view.ViewGroup)root;for(int i=0;i<group.getChildCount();i++){android.widget.CheckBox found=findEffects(group.getChildAt(i));if(found!=null)return found;}}return null;}
     private String labels(android.view.View root){StringBuilder text=new StringBuilder();if(root instanceof android.widget.TextView)text.append(((android.widget.TextView)root).getText()).append('\n');if(root instanceof android.view.ViewGroup){android.view.ViewGroup group=(android.view.ViewGroup)root;for(int i=0;i<group.getChildCount();i++)text.append(labels(group.getChildAt(i)));}return text.toString();}
     private byte[] unsigned(byte[] bytes){return bytes[0]==0?Arrays.copyOfRange(bytes,1,bytes.length):bytes;}
     private String jwt(KeyPair pair,JSONObject claims)throws Exception{String data=Auth.b64("{\"alg\":\"RS256\",\"kid\":\"qa\"}".getBytes(StandardCharsets.UTF_8))+"."+Auth.b64(claims.toString().getBytes(StandardCharsets.UTF_8));Signature signature=Signature.getInstance("SHA256withRSA");signature.initSign(pair.getPrivate());signature.update(data.getBytes(StandardCharsets.US_ASCII));return data+"."+Auth.b64(signature.sign());}
