@@ -1,0 +1,5 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="app.mangalens.android.qa" android:versionCode="1" android:versionName="1">
+    <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="37" />
+    <instrumentation android:name="app.mangalens.android.SelfTestRunner" android:targetPackage="app.mangalens.android" android:functionalTest="true" />
+    <application android:label="MangaLens QA" />
+</manifest>

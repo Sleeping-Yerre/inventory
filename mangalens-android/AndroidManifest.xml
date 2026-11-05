@@ -1,0 +1,27 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="app.mangalens.android" android:versionCode="1" android:versionName="0.1.0">
+    <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="37" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <application android:label="MangaLens" android:theme="@style/AppTheme" android:icon="@drawable/ic_manga" android:allowBackup="false" android:supportsRtl="true" android:usesCleartextTraffic="false">
+        <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTask">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="mangalens" android:host="connected" />
+            </intent-filter>
+        </activity>
+        <service android:name=".OverlayService" android:exported="false" android:foregroundServiceType="mediaProjection" />
+        <service android:name=".LoginService" android:exported="false" android:foregroundServiceType="dataSync" />
+        <provider android:name=".ApkProvider" android:authorities="app.mangalens.android.updates" android:exported="false" android:grantUriPermissions="true" />
+    </application>
+</manifest>

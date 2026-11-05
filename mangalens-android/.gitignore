@@ -1,0 +1,9 @@
+.tools/
+.signing/
+build/
+dist/
+local.properties
+*.jks
+*.keystore
+*.dpapi
+qa-device/
