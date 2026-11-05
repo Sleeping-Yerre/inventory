@@ -1,2 +1,2 @@
 # inventory
-Inventory for ai-maiden things.
+Inventory for private ai slops
