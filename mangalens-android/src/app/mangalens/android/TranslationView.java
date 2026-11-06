@@ -11,9 +11,10 @@ final class TranslationView extends View {
     private final int imageWidth,imageHeight;
     private final Paint mask=new Paint(Paint.ANTI_ALIAS_FLAG);
     private final TextPaint text=new TextPaint(Paint.ANTI_ALIAS_FLAG);
+    private final Path background=new Path();
     private final List<Placement> placements=new ArrayList<>();
     private static final class Placement {final RectF rect;final StaticLayout text;Placement(RectF r,StaticLayout t){rect=r;text=t;}}
-    TranslationView(Context c,TranslationClient.Page page,int width,int height){super(c);this.page=page;imageWidth=width;imageHeight=height;setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);layout(c);}
+    TranslationView(Context c,TranslationClient.Page page,int width,int height){super(c);this.page=page;imageWidth=width;imageHeight=height;setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);layout(c);setBackgroundTransparency(Core.backgroundTransparency(c));}
     private void layout(Context c){
         float scale=Core.prefs(c).getInt("font",100)/100f,density=c.getResources().getDisplayMetrics().density;
         mask.setColor(Color.WHITE);text.setColor(Color.rgb(20,25,30));
@@ -37,7 +38,11 @@ final class TranslationView extends View {
             float y=Math.max(cell.top+4,Math.min(cy-fitted.getHeight()/2f,cell.bottom-fitted.getHeight()-4));
             placements.add(new Placement(new RectF(x-4,y-4,x+desired+4,y+fitted.getHeight()+4),fitted));
         }
+        background.setFillType(Path.FillType.WINDING);
+        for(TranslationClient.Block b:page.blocks)for(RectF strip:b.lines){RectF padded=new RectF(strip);padded.inset(-Core.dp(c,3),-Core.dp(c,3));background.addRoundRect(padded,Core.dp(c,6),Core.dp(c,6),Path.Direction.CW);}
+        for(Placement p:placements)background.addRoundRect(p.rect,Core.dp(c,7),Core.dp(c,7),Path.Direction.CW);
     }
+    void setBackgroundTransparency(int transparency){mask.setAlpha(Core.backgroundAlpha(transparency));invalidate();}
     private StaticLayout make(String value,int width){
         String natural=wrap(value.replaceAll("(?<!\n)\n(?!\n)"," "),text,width);
         return StaticLayout.Builder.obtain(natural,0,natural.length(),new TextPaint(text),width).setAlignment(Layout.Alignment.ALIGN_CENTER).setIncludePad(false).setLineSpacing(1,1.08f).setBreakStrategy(Layout.BREAK_STRATEGY_SIMPLE).setHyphenationFrequency(Layout.HYPHENATION_FREQUENCY_NONE).build();
@@ -60,8 +65,9 @@ final class TranslationView extends View {
     }
     @Override protected void onDraw(Canvas canvas){
         super.onDraw(canvas);int[] origin=new int[2];getLocationOnScreen(origin);canvas.save();canvas.translate(-origin[0],-origin[1]);
-        for(TranslationClient.Block b:page.blocks)for(RectF strip:b.lines){RectF padded=new RectF(strip);padded.inset(-Core.dp(getContext(),3),-Core.dp(getContext(),3));canvas.drawRoundRect(padded,Core.dp(getContext(),6),Core.dp(getContext(),6),mask);}
-        for(Placement p:placements){canvas.drawRoundRect(p.rect,Core.dp(getContext(),7),Core.dp(getContext(),7),mask);canvas.save();canvas.translate(p.rect.left+4,p.rect.top+4);p.text.draw(canvas);canvas.restore();}
+        // Draw overlapping background shapes once so translucency stays uniform.
+        canvas.drawPath(background,mask);
+        for(Placement p:placements){canvas.save();canvas.translate(p.rect.left+4,p.rect.top+4);p.text.draw(canvas);canvas.restore();}
         canvas.restore();
     }
 }

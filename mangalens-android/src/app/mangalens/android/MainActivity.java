@@ -43,6 +43,14 @@ public final class MainActivity extends Activity {
         efforts.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){public void onNothingSelected(android.widget.AdapterView<?> p){}public void onItemSelected(android.widget.AdapterView<?> p,View v,int position,long id){if(!loading&&position<effortValues.size())Core.prefs(MainActivity.this).edit().putString("effort",effortValues.get(position)).apply();}});
         button("로그아웃",this::signOut);
         section("번역 표시와 참고사항");label("글자 크기",14,true);font=new Spinner(this);font.setAdapter(adapter(Arrays.asList("80%","100%","120%","140%")));font.setSelection(Math.max(0,Arrays.asList(80,100,120,140).indexOf(Core.prefs(this).getInt("font",100))));content.addView(font,fill());
+        TextView transparencyValue=label("텍스트 배경 투명도 · "+Core.backgroundTransparency(this)+"%",14,true);
+        SeekBar transparency=new SeekBar(this);transparency.setTag("background_transparency");transparency.setContentDescription("텍스트 배경 투명도");transparency.setMax(100);transparency.setProgress(Core.backgroundTransparency(this));content.addView(transparency,fill());
+        label("0%는 가장 진한 배경, 100%는 배경 없음입니다. 글자는 그대로 표시합니다.",12,false);
+        transparency.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
+            public void onProgressChanged(SeekBar bar,int value,boolean fromUser){transparencyValue.setText("텍스트 배경 투명도 · "+value+"%");Core.prefs(MainActivity.this).edit().putInt("background_transparency",value).apply();if(OverlayService.instance!=null)OverlayService.instance.setBackgroundTransparency(value);}
+            public void onStartTrackingTouch(SeekBar bar){}
+            public void onStopTrackingTouch(SeekBar bar){Core.status("텍스트 배경 투명도를 저장했습니다.");}
+        });
         CheckBox effects=new CheckBox(this);effects.setText("효과음 표시");effects.setTextSize(14);effects.setChecked(Core.prefs(this).getBoolean("show_effects",true));content.addView(effects,fill());
         label("판독이 불확실한 영역은 원문 그대로 둡니다. 효과음 표시를 끄면 확실하게 읽힌 효과음도 숨깁니다.",12,false);
         effects.setOnCheckedChangeListener((button,checked)->{Core.prefs(this).edit().putBoolean("show_effects",checked).apply();if(OverlayService.instance!=null)OverlayService.instance.refreshDisplay();Core.status(checked?"확실히 읽힌 효과음을 표시합니다.":"효과음 표시를 껐습니다.");});

@@ -117,6 +117,7 @@ public final class OverlayService extends Service {
         show(lastPage,lastWidth,lastHeight);
         if(hidden&&overlay!=null){overlay.setVisibility(View.GONE);toggle.setText("표시");}
     }
+    void setBackgroundTransparency(int transparency){if(overlay!=null&&!ending)overlay.setBackgroundTransparency(transparency);}
     void resetContext(){client.reset();clear();}
     private void resize(int w,int h){
         if(ending||display==null||(width==w&&height==h))return;operation++;client.cancel();if(task!=null)task.cancel(true);busy=false;clear();width=w;height=h;

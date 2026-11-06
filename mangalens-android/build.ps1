@@ -1,4 +1,4 @@
-param([string]$SdkRoot='', [string]$JavaRoot='', [int]$VersionCode=2, [string]$VersionName='0.1.1')
+param([string]$SdkRoot='', [string]$JavaRoot='', [int]$VersionCode=3, [string]$VersionName='0.1.2')
 $ErrorActionPreference='Stop'
 Set-Location -LiteralPath $PSScriptRoot
 if($VersionCode -lt 1 -or $VersionName -notmatch '^\d{1,5}\.\d{1,5}\.\d{1,5}$'){throw 'Invalid release version'}

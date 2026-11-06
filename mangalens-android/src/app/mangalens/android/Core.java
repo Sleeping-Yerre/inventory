@@ -25,6 +25,8 @@ final class Core {
     static android.content.SharedPreferences prefs(Context c){return c.getSharedPreferences("settings",Context.MODE_PRIVATE);}
     static void status(String text){status=text;UI.post(()->{if(observer!=null)observer.run();});}
     static int dp(Context c,float n){return Math.round(n*c.getResources().getDisplayMetrics().density);}
+    static int backgroundTransparency(Context c){return Math.max(0,Math.min(100,prefs(c).getInt("background_transparency",0)));}
+    static int backgroundAlpha(int transparency){return Math.round(255*(100-Math.max(0,Math.min(100,transparency)))/100f);}
     static Notification notification(Context c,String text,boolean stop){
         NotificationManager manager=c.getSystemService(NotificationManager.class);
         manager.createNotificationChannel(new NotificationChannel(CHANNEL,"MangaLens",NotificationManager.IMPORTANCE_LOW));

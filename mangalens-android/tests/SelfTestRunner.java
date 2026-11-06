@@ -43,6 +43,7 @@ public final class SelfTestRunner extends Instrumentation {
         JSONObject foreign=new JSONObject(payload);foreign.getJSONArray("blocks").getJSONObject(0).put("source_language","other");
         check(TranslationClient.parse(response(foreign.toString()),1000,500).blocks.isEmpty(),"non-Japanese model result excluded");
         displayChecks(c);
+        opacityChecks(c);
         TranslationClient stream=new TranslationClient();
         String terminal=event(new JSONObject().put("type","response.completed").put("response",new JSONObject().put("status","completed").put("output",new JSONArray())));
         String item=event(new JSONObject().put("type","response.output_item.done").put("item",message(payload)));
@@ -92,6 +93,9 @@ public final class SelfTestRunner extends Instrumentation {
             android.widget.CheckBox effects=findEffects(root);
             check(effects!=null&&effects.isChecked(),"effects display remains enabled by default");
             effects.setChecked(false);check(!Core.prefs(c).getBoolean("show_effects",true),"effects display checkbox immediately saves the local display preference");effects.setChecked(true);
+            android.widget.SeekBar transparency=root.findViewWithTag("background_transparency");
+            check(transparency!=null&&transparency.getMax()==100&&transparency.getProgress()==0,"background transparency slider spans zero to one hundred with existing appearance as default");
+            transparency.setProgress(65);check(Core.prefs(c).getInt("background_transparency",-1)==65&&labels(root).contains("텍스트 배경 투명도 · 65%"),"background transparency changes update the percentage label and persist immediately");transparency.setProgress(0);
             Bitmap preview=Bitmap.createBitmap(root.getWidth(),root.getHeight(),Bitmap.Config.ARGB_8888);root.draw(new Canvas(preview));
             try(FileOutputStream out=new FileOutputStream(new File(c.getExternalFilesDir(null),"qa-main.png"))){preview.compress(Bitmap.CompressFormat.PNG,100,out);}catch(Exception ex){throw new RuntimeException(ex);}finally{preview.recycle();}
             activity.finish();
@@ -115,6 +119,20 @@ public final class SelfTestRunner extends Instrumentation {
         Core.prefs(c).edit().remove("show_effects").commit();
     }
     private TranslationClient.Block block(String source,String translation,String kind,boolean uncertain){TranslationClient.Block b=new TranslationClient.Block();b.source=source;b.translation=translation;b.note="";b.kind=kind;b.uncertain=uncertain;b.bounds=new RectF(100,50,220,120);b.lines.add(new RectF(b.bounds));return b;}
+    private void opacityChecks(android.content.Context c){
+        Core.prefs(c).edit().remove("background_transparency").commit();check(Core.backgroundTransparency(c)==0,"older profiles retain the original background strength");
+        Core.prefs(c).edit().putInt("background_transparency",-20).commit();boolean low=Core.backgroundTransparency(c)==0;
+        Core.prefs(c).edit().putInt("background_transparency",140).commit();check(low&&Core.backgroundTransparency(c)==100,"invalid saved background transparency is clamped safely");Core.prefs(c).edit().remove("background_transparency").commit();
+        TranslationClient.Page page=new TranslationClient.Page();page.blocks.add(block("待って","가","dialogue",false));
+        TranslationView view=new TranslationView(c,page,1000,500);view.layout(0,0,1000,500);
+        Bitmap opaque=render(view,0),half=render(view,50),transparent=render(view,100);
+        check(Color.alpha(opaque.getPixel(110,80))==255&&Color.alpha(transparent.getPixel(110,80))==0,"background can reach full paint strength and disappear completely");
+        check(Color.alpha(half.getPixel(110,80))==128,"overlapping source and translated-text backgrounds retain uniform half opacity");
+        check(textAlpha(opaque)==255&&textAlpha(half)==255&&textAlpha(transparent)==255,"background transparency never fades the Korean glyphs");
+        opaque.recycle();half.recycle();transparent.recycle();
+    }
+    private Bitmap render(TranslationView view,int transparency){view.setBackgroundTransparency(transparency);Bitmap image=Bitmap.createBitmap(1000,500,Bitmap.Config.ARGB_8888);view.draw(new Canvas(image));return image;}
+    private int textAlpha(Bitmap image){int[] pixels=new int[image.getWidth()*image.getHeight()];image.getPixels(pixels,0,image.getWidth(),0,0,image.getWidth(),image.getHeight());int maximum=0;for(int p:pixels)if(Color.red(p)<45&&Color.green(p)<45&&Color.blue(p)<55)maximum=Math.max(maximum,Color.alpha(p));return maximum;}
     private android.widget.CheckBox findEffects(android.view.View root){if(root instanceof android.widget.CheckBox&&((android.widget.CheckBox)root).getText().toString().equals("효과음 표시"))return (android.widget.CheckBox)root;if(root instanceof android.view.ViewGroup){android.view.ViewGroup group=(android.view.ViewGroup)root;for(int i=0;i<group.getChildCount();i++){android.widget.CheckBox found=findEffects(group.getChildAt(i));if(found!=null)return found;}}return null;}
     private String labels(android.view.View root){StringBuilder text=new StringBuilder();if(root instanceof android.widget.TextView)text.append(((android.widget.TextView)root).getText()).append('\n');if(root instanceof android.view.ViewGroup){android.view.ViewGroup group=(android.view.ViewGroup)root;for(int i=0;i<group.getChildCount();i++)text.append(labels(group.getChildAt(i)));}return text.toString();}
     private byte[] unsigned(byte[] bytes){return bytes[0]==0?Arrays.copyOfRange(bytes,1,bytes.length):bytes;}
